@@ -3,13 +3,13 @@ import { Link } from "react-router-dom";
 import { DemoControls } from "../components/DemoControls";
 import { EstimateCard } from "../components/EstimateCard";
 import { OptionCards } from "../components/OptionCards";
-import { PlaceholderBanner } from "../components/PlaceholderBanner";
+import { DataNote } from "../components/PlaceholderBanner";
 import { ReliabilityCard } from "../components/ReliabilityCard";
 import { Tango } from "../components/Tango";
 import { TangoPanel } from "../components/TangoPanel";
 import { WaitlistSection } from "../components/WaitlistForm";
 import { defaultDemo, orderTitle, quoteDemo, reliabilityMean, type DemoInput } from "../lib/calculate";
-import { flagEmoji, money } from "../lib/format";
+import { flagEmoji, money, RATE_UNAVAILABLE, unitPriceLabel } from "../lib/format";
 import { usePageTitle } from "../lib/usePageTitle";
 
 export function HomePage() {
@@ -64,7 +64,7 @@ export function HomePage() {
                 </span>
                 <EstimateCard result={quote.a} title={orderTitle(quote.a)} />
                 <span className="absolute -bottom-4 right-6 rounded-full bg-primary px-4 py-2 font-mono text-xs text-white shadow-[0_12px_24px_-12px_rgba(0,71,171,0.9)]">
-                  {money(quote.a.perUnit)} / unit
+                  {unitPriceLabel(quote.a.perUnit)}
                 </span>
               </div>
             ) : (
@@ -162,7 +162,7 @@ export function HomePage() {
                 <FeatureIndex n="01" />
                 <h3 className="mt-6 font-heading text-3xl leading-tight sm:text-4xl">Tariff & import calculator</h3>
                 <p className="mt-4 max-w-md text-lg leading-relaxed text-muted">
-                  See duties, tariffs, taxes, and shipping before you place the order. This demo runs on the placeholder rate file.
+                  See duties, tariffs, taxes, and shipping before you place the order. Duty and tax come from official schedules. Freight is your estimate.
                 </p>
                 <Link to="/calculator" className="mt-6 inline-flex text-sm font-medium text-primary">
                   Open the full calculator →
@@ -174,12 +174,20 @@ export function HomePage() {
                   <div className="mt-7 flex items-end justify-between gap-4 border-t border-line pt-6">
                     <p className="mono-label">Est. landed cost</p>
                     <p className="font-heading text-5xl leading-none text-primary">
-                      {quote.ok ? money(quote.a.perUnit) : "—"}
-                      <span className="font-mono text-xs text-muted"> / unit</span>
+                      {quote.ok && quote.a.perUnit != null ? (
+                        <>
+                          {money(quote.a.perUnit)}
+                          <span className="font-mono text-xs text-muted"> / unit</span>
+                        </>
+                      ) : quote.ok ? (
+                        <span className="text-3xl">{RATE_UNAVAILABLE}</span>
+                      ) : (
+                        "—"
+                      )}
                     </p>
                   </div>
                 </div>
-                <p className="mono-label mt-5 text-[10px]">The card above follows this demo · placeholder rates</p>
+                <p className="mono-label mt-5 text-[10px]">The card above follows this demo · freight is your estimate</p>
               </div>
             </article>
 
@@ -226,7 +234,7 @@ export function HomePage() {
           </div>
 
           <div className="mt-10">
-            <PlaceholderBanner />
+            <DataNote />
           </div>
           <div className="mt-8 flex justify-center">
             <a href="#waitlist" className="btn-primary">

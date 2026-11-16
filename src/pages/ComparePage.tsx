@@ -2,20 +2,25 @@ import { useMemo, useState } from "react";
 import { DemoControls } from "../components/DemoControls";
 import { OptionCards } from "../components/OptionCards";
 import { PageIntro } from "../components/PageIntro";
-import { PlaceholderBanner } from "../components/PlaceholderBanner";
+import { DataNote } from "../components/PlaceholderBanner";
 import { ReliabilityCard } from "../components/ReliabilityCard";
 import { TangoPanel } from "../components/TangoPanel";
 import { WaitlistSection } from "../components/WaitlistForm";
 import { defaultDemo, quoteDemo, reliabilityMean, type DemoInput } from "../lib/calculate";
-import { money } from "../lib/format";
+import { money, RATE_UNAVAILABLE } from "../lib/format";
 import { usePageTitle } from "../lib/usePageTitle";
 
 export function ComparePage() {
   usePageTitle("Supplier comparison — Landed");
   const [demo, setDemo] = useState<DemoInput>(defaultDemo);
   const quote = useMemo(() => quoteDemo(demo), [demo]);
-  const delta = quote.ok ? Math.abs(quote.a.total - quote.b.total) : 0;
-  const cheaper = quote.ok ? (quote.a.total <= quote.b.total ? quote.a : quote.b) : null;
+  const aTotal = quote.ok ? quote.a.total : null;
+  const bTotal = quote.ok ? quote.b.total : null;
+  const aPer = quote.ok ? quote.a.perUnit : null;
+  const bPer = quote.ok ? quote.b.perUnit : null;
+  const priced = aTotal != null && bTotal != null && aPer != null && bPer != null;
+  const delta = priced ? Math.abs(aTotal - bTotal) : 0;
+  const cheaperIsA = priced && aTotal <= bTotal;
 
   return (
     <>
@@ -23,25 +28,32 @@ export function ComparePage() {
       <PageIntro
         eyebrow="Demo · Supplier comparison"
         title="Two quotes. One landed cost."
-        lede="Put two sourcing options next to each other. The demo keeps the same product, quantity, and destination, then prices each origin with the placeholder rate file — duty program included."
+        lede="Put two sourcing options next to each other. Duty follows the schedule for each origin. Preferential rates count only when you say the rules of origin are met. Freight is your estimate on each option."
       />
       <div className="mt-8">
-        <PlaceholderBanner />
+        <DataNote />
       </div>
       <div className="mt-10 rounded-[32px] border border-line bg-white p-6 sm:p-8">
         <DemoControls demo={demo} onChange={setDemo} showBoth />
       </div>
-      {quote.ok && cheaper ? (
+      {quote.ok ? (
         <>
           <p className="mt-8 rounded-[24px] bg-mist px-6 py-5 text-lg">
-            {delta === 0 ? (
-              <>
-                Both options land at <span className="font-heading text-3xl text-primary">{money(quote.a.total)}</span>.
-              </>
+            {priced ? (
+              delta === 0 ? (
+                <>
+                  Both options land at <span className="font-heading text-3xl text-primary">{money(aTotal)}</span>.
+                </>
+              ) : (
+                <>
+                  <span className="font-heading text-3xl text-primary">{cheaperIsA ? quote.a.origin.name : quote.b.origin.name}</span>{" "}
+                  costs {money(delta)} less to land on this order, at {money(cheaperIsA ? aPer : bPer)} a unit.
+                </>
+              )
             ) : (
               <>
-                <span className="font-heading text-3xl text-primary">{cheaper.origin.name}</span> costs {money(delta)} less to
-                land on this order, at {money(cheaper.perUnit)} a unit.
+                One of these lanes is <span className="font-medium">{RATE_UNAVAILABLE.toLowerCase()}</span>, so the landed costs
+                can’t be ranked. A missing duty is not treated as zero.
               </>
             )}
           </p>

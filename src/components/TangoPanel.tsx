@@ -14,7 +14,7 @@ export function TangoPanel({ context }: { context: ExplainContext | null }) {
     if (!text) return;
     const reply = context
       ? answerQuestion(text, context)
-      : "Add a quantity and a unit cost, and I’ll walk through the estimate. The rate file behind me is still placeholder data.";
+      : "Add a quantity and a unit cost, and I’ll walk through the estimate.";
     setMessages((current) => [...current, { role: "you", text }, { role: "tango", text: reply }]);
     setDraft("");
   }
@@ -80,7 +80,7 @@ export function TangoPanel({ context }: { context: ExplainContext | null }) {
           <ArrowUp />
         </button>
       </form>
-      <p className="mono-label mt-5 text-[10px]">Rule-based for now · placeholder rates</p>
+      <p className="mono-label mt-5 text-[10px]">Rule-based · not customs advice</p>
     </div>
   );
 }

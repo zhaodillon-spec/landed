@@ -10,10 +10,31 @@ export function transitLabel(days: readonly [number, number]): string {
   return `${days[0]}–${days[1]} days`;
 }
 
+export const RATE_UNAVAILABLE = "Rate unavailable";
+
+export function moneyOrUnavailable(value: number | null): string {
+  return value == null ? RATE_UNAVAILABLE : money(value);
+}
+
+export function unitPriceLabel(value: number | null): string {
+  return value == null ? RATE_UNAVAILABLE : `${money(value)} / unit`;
+}
+
+export function formatAsOf(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1)).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function flagEmoji(code: string): string {
-  if (code === "EU") return "🇪🇺";
-  if (!/^[A-Z]{2}$/.test(code)) return "🏳️";
-  return [...code].map((char) => String.fromCodePoint(127397 + char.charCodeAt(0))).join("");
+  const iso = code === "UK" ? "GB" : code;
+  if (iso === "EU") return "🇪🇺";
+  if (!/^[A-Z]{2}$/.test(iso)) return "🏳️";
+  return [...iso].map((char) => String.fromCodePoint(127397 + char.charCodeAt(0))).join("");
 }
 
 const field =

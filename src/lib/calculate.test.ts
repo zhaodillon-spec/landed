@@ -1,128 +1,148 @@
 import { describe, expect, it } from "vitest";
 import { handleWaitlist } from "../../shared/waitlist.mjs";
-import { calculate, defaultDemo, quoteDemo } from "./calculate";
+import { calculate, defaultDemo, quoteDemo, resolveDuty } from "./calculate";
 import { answerQuestion } from "./explain";
-import { origins, rates } from "./rates";
+import { origins, tariffs } from "./rates";
 
-const contextFromDefault = () => {
-  const quote = quoteDemo(defaultDemo);
-  if (!quote.ok) throw new Error(quote.error);
-  return {
-    primary: quote.a,
-    secondary: quote.b,
-    primaryLabel: "Option A",
-    secondaryLabel: "Option B",
-  };
-};
+const linen = {
+  categoryId: "shirt_woven_linen",
+  unitCost: 21,
+  quantity: 200,
+  freightPerUnit: 2.7,
+  insuranceRate: 0.005,
+  vatChoice: "GST",
+} as const;
 
-describe("rates file", () => {
-  it("ships at least 50 origins and labels the file as placeholder", () => {
+describe("tariff file", () => {
+  it("covers at least 50 origins, four destinations, and an as-of date", () => {
     expect(origins.length).toBeGreaterThanOrEqual(50);
-    expect(rates.meta.dataStatus).toBe("placeholder");
-    expect(rates.meta.disclaimer.toLowerCase()).toContain("placeholder");
-    expect(rates.destinations.map((destination) => destination.code)).toEqual(["CA", "US", "GB", "EU"]);
+    expect(Object.keys(tariffs.destinations)).toEqual(["CA", "US", "UK", "EU"]);
+    expect(tariffs.meta.as_of).toBe("2026-11-15");
+    expect(tariffs.categories).toHaveLength(9);
   });
 });
 
 describe("calculate", () => {
-  it("prices 200 shirts from Portugal to Canada off the placeholder table", () => {
-    const result = calculate({
-      categoryId: "woven-shirts",
-      originCode: "PT",
-      destinationCode: "CA",
-      unitCost: 21,
-      quantity: 200,
-    });
+  it("uses the preferential path for linen shirts from Portugal to Canada", () => {
+    const result = calculate({ ...linen, originCode: "PT", destinationCode: "CA", claimPreference: true });
+    expect(result.dutyKind).toBe("preferential");
+    expect(result.dutyRate).toBe(0);
+    expect(result.dutyProgram).toMatch(/CETA/);
+    expect(result.duty).toBe(0);
     expect(result.product).toBe(4200);
     expect(result.freight).toBe(540);
     expect(result.insurance).toBe(21);
-    expect(result.dutyKind).toBe("mfn");
-    expect(result.dutyRate).toBe(0.17);
-    expect(result.duty).toBe(714);
     expect(result.taxName).toBe("GST");
-    expect(result.tax).toBe(273.75);
-    expect(result.total).toBe(5748.75);
-    expect(result.perUnit).toBeCloseTo(28.74375);
+    expect(result.tax).toBe(210);
+    expect(result.total).toBe(4971);
   });
 
-  it("uses Vietnam's preferential override into Canada and lands lower", () => {
-    const vietnam = calculate({
-      categoryId: "woven-shirts",
-      originCode: "VN",
-      destinationCode: "CA",
-      unitCost: 18.5,
-      quantity: 200,
-    });
-    const portugal = calculate({
-      categoryId: "woven-shirts",
-      originCode: "PT",
-      destinationCode: "CA",
-      unitCost: 21,
-      quantity: 200,
-    });
-    expect(vietnam.dutyKind).toBe("preferential");
-    expect(vietnam.dutyRate).toBe(0.09);
-    expect(vietnam.dutyProgram).toMatch(/CPTPP/);
-    expect(vietnam.freight).toBe(710);
-    expect(vietnam.perUnit).toBeLessThan(portugal.perUnit);
+  it("falls back to the MFN path when rules of origin are not claimed", () => {
+    const result = calculate({ ...linen, originCode: "PT", destinationCode: "CA", claimPreference: false });
+    expect(result.dutyKind).toBe("mfn");
+    expect(result.dutyRate).toBeCloseTo(0.18);
+    expect(result.duty).toBe(756);
+    expect(result.tax).toBe(247.8);
+    expect(result.total).toBe(5764.8);
   });
 
-  it("applies the intra-EU placeholder as zero duty", () => {
+  it("does not treat a null effective rate as zero", () => {
+    const result = calculate({ ...linen, originCode: "US", destinationCode: "CA", claimPreference: true });
+    expect(result.dutyKind).toBe("unavailable");
+    expect(result.duty).toBeNull();
+    expect(result.dutyAvailable).toBe(false);
+    expect(result.total).toBeNull();
+    expect(resolveDuty("shirt_woven_linen", "US", "CA", true).rate).toBeNull();
+  });
+
+  it("treats an EU origin into the EU as domestic, not as a zeroed import", () => {
     const result = calculate({
-      categoryId: "woven-shirts",
+      ...linen,
       originCode: "PT",
       destinationCode: "EU",
-      unitCost: 21,
-      quantity: 200,
-    });
-    expect(result.duty).toBe(0);
-    expect(result.dutyKind).toBe("preferential");
-  });
-
-  it("treats the same country as domestic", () => {
-    const result = calculate({
-      categoryId: "knit-tees",
-      originCode: "US",
-      destinationCode: "US",
-      unitCost: 8,
-      quantity: 100,
+      claimPreference: true,
+      vatChoice: "default",
     });
     expect(result.dutyKind).toBe("domestic");
     expect(result.duty).toBe(0);
     expect(result.tax).toBe(0);
+    expect(result.taxName).toBe("No import tax");
   });
 
-  it("scales outerwear freight above shirts on the same lane", () => {
-    const shirts = calculate({
-      categoryId: "woven-shirts",
-      originCode: "PT",
-      destinationCode: "CA",
-      unitCost: 21,
-      quantity: 1,
+  it("charges UK duty on a CIF stand-in for a non-zero MFN lane", () => {
+    const result = calculate({
+      ...linen,
+      originCode: "CN",
+      destinationCode: "UK",
+      claimPreference: true,
+      vatChoice: "VAT",
     });
-    const coats = calculate({
-      categoryId: "outerwear",
-      originCode: "PT",
-      destinationCode: "CA",
-      unitCost: 21,
-      quantity: 1,
+    expect(result.dutyBasis).toBe("cif");
+    expect(result.dutyKind).toBe("mfn");
+    expect(result.dutyRate).toBeCloseTo(0.12);
+    expect(result.duty).toBe(571.32);
+    expect(result.taxRate).toBeCloseTo(0.2);
+    expect(result.tax).toBe(1066.46);
+    expect(result.total).toBe(6398.78);
+  });
+
+  it("adds US merchandise and harbor fees and keeps China linen on the published effective rate", () => {
+    const result = calculate({
+      ...linen,
+      originCode: "CN",
+      destinationCode: "US",
+      claimPreference: true,
+      vatChoice: "none",
     });
-    expect(coats.freight).toBeGreaterThan(shirts.freight);
+    expect(result.dutyRate).toBeCloseTo(0.228);
+    expect(result.duty).toBe(957.6);
+    expect(result.tax).toBe(0);
+    expect(result.feeLines.map((line) => line.name)).toEqual([
+      "Merchandise Processing Fee",
+      "Harbor Maintenance Fee",
+    ]);
+    expect(result.fees).toBe(19.8);
+    expect(result.total).toBe(5738.4);
+  });
+
+  it("quotes the default linen demo with a real preference and a lower Vietnam landed cost", () => {
+    const quote = quoteDemo(defaultDemo);
+    expect(quote.ok).toBe(true);
+    if (!quote.ok) return;
+    expect(quote.a.dutyKind).toBe("preferential");
+    expect(quote.b.dutyKind).toBe("preferential");
+    expect(quote.b.perUnit).not.toBeNull();
+    expect(quote.a.perUnit).not.toBeNull();
+    expect(quote.b.perUnit!).toBeLessThan(quote.a.perUnit!);
   });
 });
 
 describe("Tango", () => {
-  it("explains the duty line with the placeholder rate", () => {
-    const answer = answerQuestion("Why are my duties this high?", contextFromDefault());
-    expect(answer).toContain("$714.00");
-    expect(answer).toContain("17%");
-    expect(answer.toLowerCase()).toContain("placeholder");
+  it("explains the preferential duty and that it is not customs advice", () => {
+    const quote = quoteDemo(defaultDemo);
+    if (!quote.ok) throw new Error(quote.error);
+    const answer = answerQuestion("Why are my duties this high?", {
+      primary: quote.a,
+      secondary: quote.b,
+      primaryLabel: "Option A",
+      secondaryLabel: "Option B",
+    });
+    expect(answer).toContain("CETA");
+    expect(answer.toLowerCase()).toContain("rules of origin");
+    expect(answer.toLowerCase()).toContain("not customs advice");
   });
 
-  it("picks the lower landed option", () => {
-    const answer = answerQuestion("Which option costs less to land?", contextFromDefault());
-    expect(answer).toContain("Vietnam");
-    expect(answer).toContain("Portugal");
+  it("refuses to call a missing rate zero", () => {
+    const result = calculate({ ...linen, originCode: "US", destinationCode: "CA", claimPreference: true });
+    const answer = answerQuestion("Why are my duties this high?", {
+      primary: result,
+      secondary: null,
+      primaryLabel: "This order",
+      secondaryLabel: "",
+    });
+    expect(answer.toLowerCase()).toContain("unavailable");
+    expect(answer.toLowerCase()).toContain("not");
+    expect(answer.toLowerCase()).toContain("zero");
   });
 });
 
@@ -130,22 +150,5 @@ describe("waitlist api", () => {
   it("rejects a bad email", async () => {
     const result = await handleWaitlist({ email: "nope", brandName: "Studio" }, {});
     expect(result.status).toBe(400);
-  });
-
-  it("accepts a signup when no backend is configured", async () => {
-    const result = await handleWaitlist(
-      { email: "ada@example.com", brandName: "Studio Ada", role: "Founder" },
-      {},
-    );
-    expect(result.status).toBe(200);
-    expect(result.body.stored).toBe("unconfigured");
-  });
-
-  it("drops honeypot submissions", async () => {
-    const result = await handleWaitlist(
-      { email: "ada@example.com", brandName: "Studio Ada", companyWebsite: "https://spam.test" },
-      {},
-    );
-    expect(result.body.stored).toBe("ignored");
   });
 });

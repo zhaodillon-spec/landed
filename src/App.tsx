@@ -5,6 +5,7 @@ import { CalculatorPage } from "./pages/CalculatorPage";
 import { ComparePage } from "./pages/ComparePage";
 import { HomePage } from "./pages/HomePage";
 import { RatesPage } from "./pages/RatesPage";
+import { SourcesPage } from "./pages/SourcesPage";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/calculator" element={<CalculatorPage />} />
         <Route path="/compare" element={<ComparePage />} />
         <Route path="/rates" element={<RatesPage />} />
+        <Route path="/sources" element={<SourcesPage />} />
         <Route path="*" element={<HomePage />} />
       </Routes>
       <SiteFooter />

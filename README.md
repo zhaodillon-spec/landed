@@ -4,7 +4,7 @@ Landed helps independent fashion brands source smarter by showing them what impo
 
 This repo is a working product demo: a landing page, a landed-cost calculator, a supplier comparison, fictional reliability signals, and Tango, a rule-based explainer. The main call to action is the early-access waitlist.
 
-The visual starting point was the concept site at [landedweb.base44.app](https://landedweb.base44.app). The calculator and comparison here actually compute. The concept site’s sample card used hand-rounded illustrations; this app’s numbers come from [`src/data/rates.json`](src/data/rates.json), so they will not match that card exactly.
+The visual starting point was the concept site at [landedweb.base44.app](https://landedweb.base44.app). Duty and tax now come from [`src/data/tariffs.json`](src/data/tariffs.json) (official schedules as of 15 Nov 2026). Freight is an editable estimate because the dataset does not include it.
 
 ## Setup
 
@@ -18,76 +18,57 @@ npm run dev
 Open the URL Vite prints (usually http://localhost:5173).
 
 ```bash
-npm test          # calculator, rate-file, and waitlist checks
+npm test          # calculator, tariff-file, and waitlist checks
 npm run build     # typecheck + production bundle
 npm run preview   # serve the production bundle
 ```
 
-## What’s real
+## What’s from the schedules
 
-- The page, the waitlist form, and the navigation.
-- The calculator and comparison math in [`src/lib/calculate.ts`](src/lib/calculate.ts). Change unit cost, quantity, origin, destination, or product category and the breakdown updates.
-- Country names and ISO-style codes for 74 apparel-exporting origins, plus four destinations: Canada, the United States, the United Kingdom, and the European Union as a bloc. Origin and destination pickers are searchable.
-- Tango’s replies. They are rules over the current breakdown (duty share, which option lands lower, what the tax line includes, how freight was looked up). There is no language-model API.
-- Waitlist submission. See below for where a signup is stored.
+Duty, import tax, de minimis notes, and source links come from [`src/data/tariffs.json`](src/data/tariffs.json), as of **15 Nov 2026**. Coverage is 62 origin countries, four destinations (Canada, the United States, the United Kingdom, the European Union), and nine apparel categories. The in-app sources page credits CBSA, USITC, the UK Trade Tariff, and the EU tariff as published for Northern Ireland, and lists the dataset’s caveats.
 
-## What’s placeholder
+Lookup is `rates[category][origin][destination]`:
 
-Everything inside [`src/data/rates.json`](src/data/rates.json) is labelled placeholder data:
+- Default path: `effective_rate_preferential_path`, and only while “Assume the rules of origin are met” is checked.
+- If that value is null, or the box is unchecked, the calculator uses `effective_rate_mfn_path`.
+- `domestic: true` (same customs territory, including intra-EU) is zero import duty and no import tax.
+- If the effective rate in use is null, the duty line says **rate unavailable**. It is not treated as 0%, and the landed total stays incomplete.
+- Rates in the file are percent points (`17` means 17%).
 
-- MFN duty rates by HS-style product category and destination.
-- Preferential overrides (named things like “CPTPP-style (placeholder)”). These are not official agreement rates and do not decide rules of origin.
-- Import tax / VAT by destination, including a flat “EU VAT blend”.
-- Ocean freight per piece and transit-day ranges.
-- HS codes. They are file labels, not classification opinions.
-- `demoReliability` on each origin. Fictional signals so the reliability panel has something to weigh. Not an audit, and not a judgment of manufacturers in that country.
+Canada GST defaults to 5% on product cost plus duty. The form can switch to the HST rates in the file. EU VAT defaults to 21%, with the listed member-state rates as options. The UK rate is 20% on the CIF stand-in plus duty. The United States has no federal import VAT; the estimate adds the dataset’s MPF and an ocean HMF, both labelled as fees.
 
-`meta.dataStatus` is `"placeholder"` and `meta.disclaimer` is shown in the UI. `hello@example.com` in the footer is a stand-in address.
+De minimis text is shown beside the result. It is not applied automatically, because the thresholds depend on channel, origin, and whether the shipment is a consumer parcel or a production order.
 
-Do not ship these rates as tariff advice. A customs broker, the official schedule, and a freight quote are the real inputs.
+## What’s still an estimate
+
+- **Freight and insurance.** The tariff file leaves freight null. The form starts with a labelled starter from [`src/lib/freightEstimate.ts`](src/lib/freightEstimate.ts). Type over it. Transit ranges in the comparison are the same kind of starter, not sailings.
+- **Reliability dots.** Fictional, so the panel has signals to weigh. Not an audit of factories in that country.
+- **Tango.** Rules over the current breakdown. No language-model API.
+- **hello@example.com.** A stand-in address.
+
+These estimates are not customs advice. A different fibre, gender, value band, or weight can change the tariff line.
 
 ### How a number is built
 
-For an order:
-
 1. Product = unit cost × quantity.
-2. Freight = the category’s per-piece lane (origin region, or an `originOverrides` entry) × quantity.
-3. Insurance = `insuranceRateOfProduct` × product.
-4. Duty = rate × product cost, unless that category sets `dutyBasis` to `cif` (then the base is product + freight + insurance). The rate is the preferential override for that origin and destination if one exists, otherwise the MFN rate. The same country on both sides is treated as domestic, duty 0.
-5. Import tax = destination rate × the tax base (`cif_plus_duty`, `cif`, or `product`).
-6. Landed cost = product + freight + insurance + duty + tax. Per unit = landed cost ÷ quantity.
+2. Freight = the per-unit figure in the form × quantity. Insurance = the insurance percent × product.
+3. Duty base is product cost for Canada and the United States, and product + freight + insurance for the UK and the EU.
+4. Duty = that base × the selected effective rate. An unavailable rate stops the total.
+5. Import tax follows the destination note in the file (Canada: product + duty; UK and EU: CIF stand-in + duty).
+6. Landed cost = product + freight + insurance + duty + tax + US fees, when every required rate is present.
 
-Worked example from the placeholder file: 200 woven shirts, $21, Portugal → Canada.
+Worked example, rules of origin on, starter freight $2.70 and insurance 0.5%: 200 linen shirts, $21, Portugal → Canada. The schedule’s CETA preferential path is 0% (MFN path 18%).
 
 | Line | Amount | Why |
 | --- | --- | --- |
 | Product | $4,200 | 21 × 200 |
-| Freight | $540 | $2.70 × 200, Southern Europe → Canada |
-| Insurance | $21 | 0.5% of product |
-| Duty | $714 | MFN 17% of product. No Portugal → Canada override is on file. |
-| GST | $273.75 | 5% of product + freight + insurance + duty |
-| Landed | $5,748.75 | $28.74 / unit |
+| Freight | $540 | $2.70 × 200, your estimate |
+| Insurance | $21 | 0.5% of product, your estimate |
+| Duty | $0 | Preferential path 0% |
+| GST | $210 | 5% of product + duty |
+| Landed | $4,971 | $24.86 / unit |
 
-Vietnam → Canada on the same order shape uses the CPTPP-style placeholder (9% instead of 17%) plus a longer, more expensive lane. The comparison page shows that tradeoff next to the fictional reliability profile.
-
-## Replacing the rate file
-
-[`src/data/rates.json`](src/data/rates.json) is the only rate table. Drop researched values in without renaming keys. The shape:
-
-- `meta` — set `dataStatus` (for example `"researched"`), rewrite `disclaimer`, and set `asOf`.
-- `destinations` — markets the calculator can land into.
-- `origins` — at least the countries you want in the picker. `region` must match a freight region. `demoReliability` can stay fictional or be removed from the UI later; the calculator does not use it for money.
-- `categories[]` — one object per product group:
-  - `mfnByDestination` — ad valorem duty (0.17 means 17%) for every destination.
-  - `preferentialOverrides` — only the origin/destination pairs that should not use MFN. Omit a pair to keep MFN.
-  - `importTaxByDestination` — name, rate, `basis` (`cif_plus_duty`, `cif`, or `product`), and a note.
-  - `freightEstimates.byOriginRegion` — per-piece USD and a `[minDays, maxDays]` range for every origin region and destination.
-  - `freightEstimates.originOverrides` — optional per-country lanes that replace the region lane.
-  - `dutyBasis` — `fob_product` or `cif`.
-
-`src/lib/rates.ts` checks the file on startup (50+ origins, every destination has MFN and tax, every origin region has a freight lane, preferences point at known countries). A bad file fails the build’s tests and the running app.
-
-[`scripts/generate-placeholder-rates.mjs`](scripts/generate-placeholder-rates.mjs) rewrote the placeholder file. Do not run it once real rates are in the JSON. It overwrites the file.
+Turn the rules-of-origin box off and the same lane uses the 18% MFN path: duty $756, GST $247.80, landed $5,764.80. United States → Canada is null in the file for these lines, so the duty reads “rate unavailable” rather than $0.
 
 ## Waitlist storage
 

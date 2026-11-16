@@ -25,6 +25,9 @@ export function SiteFooter() {
             <Link to="/rates" className="hover:text-primary">
               Rate table
             </Link>
+            <Link to="/sources" className="hover:text-primary">
+              Sources
+            </Link>
             <a href="#waitlist" className="hover:text-primary">
               Join the waitlist
             </a>
@@ -32,6 +35,7 @@ export function SiteFooter() {
           <a href="mailto:hello@example.com" className="inline-flex min-h-12 items-center hover:text-primary">
             hello@example.com
           </a>
+          <p className="mono-label">Estimates as of 15 Nov 2026. Not customs advice.</p>
           <p className="mono-label">© 2026 Landed. All rights reserved.</p>
         </div>
       </div>

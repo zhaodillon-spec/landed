@@ -1,4 +1,5 @@
 import { money, percent, transitLabel } from "./format";
+import { AS_OF, DISCLAIMER } from "./rates";
 import { reliabilityMean } from "./calculate";
 import type { LineResult } from "./types";
 
@@ -9,81 +10,97 @@ export type ExplainContext = {
   secondaryLabel: string;
 };
 
-const DISCLAIMER = "These figures are placeholder estimates, not a customs ruling.";
-
 function share(part: number, total: number): number {
   if (total <= 0) return 0;
   return Math.round((part / total) * 100);
 }
 
+function rateText(rate: number | null): string {
+  return rate == null ? "rate unavailable" : percent(rate);
+}
+
 function dutySentence(result: LineResult): string {
-  const rate = percent(result.dutyRate);
-  if (result.dutyKind === "preferential") {
-    return `${result.origin.name} → ${result.destination.name} uses a preferential override on file: ${result.dutyProgram} at ${rate}, instead of the MFN placeholder of ${percent(result.mfnRate)}.`;
+  if (result.dutyKind === "unavailable" || result.dutyRate == null) {
+    return `${result.origin.name} → ${result.destination.name} has no usable effective rate in the ${AS_OF} schedule. Landed leaves that duty blank instead of assuming zero. ${result.dutyNotes[0] ?? ""}`.trim();
   }
   if (result.dutyKind === "domestic") {
-    return `Origin and destination are the same, so this demo treats it as a domestic shipment and sets duty to ${rate}.`;
+    return `${result.origin.name} → ${result.destination.name} is the same customs territory, so import duty is ${percent(result.dutyRate)}. ${result.dutyNotes[0] ?? ""}`.trim();
   }
-  return `No preferential override is on file for ${result.origin.name} → ${result.destination.name}, so the MFN placeholder of ${rate} applies.`;
+  if (result.dutyKind === "preferential") {
+    const mfn = result.mfnPathRate == null ? "" : ` The MFN path would be ${percent(result.mfnPathRate)}.`;
+    return `${result.origin.name} → ${result.destination.name} uses ${result.dutyProgram} at ${percent(result.dutyRate)}, and only if the goods meet the rules of origin and you can prove it.${mfn}`;
+  }
+  return `${result.origin.name} → ${result.destination.name} is on the MFN path at ${percent(result.dutyRate)}. ${result.dutyNotes[0] ?? ""}`.trim();
 }
 
 function basisSentence(result: LineResult): string {
   if (result.dutyBasis === "cif") {
-    return "Duty is calculated on the CIF value (product + freight + insurance).";
+    return "Duty is calculated on a CIF stand-in: product plus your freight and insurance estimates.";
   }
-  return "Duty is calculated on product cost only. That is this file's placeholder stand-in for customs value.";
+  return "Duty is calculated on product cost, the FOB / transaction-value stand-in for this destination.";
 }
 
-function taxBaseSentence(result: LineResult): string {
-  if (result.taxBasis === "cif") return "The tax base in this file is CIF: product + freight + insurance.";
-  if (result.taxBasis === "product") return "The tax base in this file is product cost only.";
-  return "The tax base in this file is CIF plus duty: product + freight + insurance + duty.";
+export function greeting(ctx: ExplainContext): string {
+  const result = ctx.primary;
+  if (result.duty == null || result.total == null) {
+    return `The duty rate for ${result.origin.name} → ${result.destination.name} is unavailable, so I can’t finish this landed cost. I won’t treat a missing rate as zero.`;
+  }
+  return `Duties and tariffs are ${money(result.duty)} of your ${money(result.total)} estimate, about ${share(result.duty, result.total)}%. Schedules as of ${AS_OF}. Ask me where that comes from.`;
 }
 
 export function answerQuestion(question: string, ctx: ExplainContext): string {
   const q = question.toLowerCase();
   if (/reliab|signal|trust|factory|supplier quality/.test(q)) return reliabilityAnswer(ctx);
   if (/which|cheaper|less to land|compare|option|versus|\bvs\b/.test(q)) return compareAnswer(ctx);
-  if (/tax|vat|\bgst\b/.test(q)) return taxAnswer(ctx);
+  if (/tax|vat|\bgst\b|de minimis|hst/.test(q)) return taxAnswer(ctx);
   if (/freight|ship|transit|lead time|insurance/.test(q)) return freightAnswer(ctx);
-  if (/dut|tariff|mfn|preferen/.test(q)) return dutyAnswer(ctx);
+  if (/dut|tariff|mfn|preferen|origin/.test(q)) return dutyAnswer(ctx);
   return summaryAnswer(ctx);
 }
 
 function dutyAnswer(ctx: ExplainContext): string {
   const result = ctx.primary;
-  return [
-    `Duties and tariffs are ${money(result.duty)} of your ${money(result.total)} estimate, about ${share(result.duty, result.total)}%.`,
-    dutySentence(result),
-    basisSentence(result),
-    `The row is grouped under illustrative heading ${result.category.hsCode} (${result.category.name}). ${result.category.hsNote}`,
-    DISCLAIMER,
-  ].join(" ");
+  const amount =
+    result.duty == null || result.total == null
+      ? "I can’t quote a duty amount for this lane."
+      : `Duties and tariffs are ${money(result.duty)} of your ${money(result.total)} estimate, about ${share(result.duty, result.total)}%.`;
+  const extras = result.extraTariffs
+    .filter((item) => item.rate)
+    .map((item) => item.name)
+    .slice(0, 2);
+  const extraSentence = extras.length ? `Extra duties folded into the effective rate include ${extras.join("; ")}.` : "";
+  const code = result.hsCode ? `Tariff line ${result.hsCode} (${result.category.label}).` : result.category.label;
+  return [amount, dutySentence(result), basisSentence(result), extraSentence, code, DISCLAIMER].filter(Boolean).join(" ");
 }
 
 function taxAnswer(ctx: ExplainContext): string {
   const result = ctx.primary;
+  if (!result.taxAvailable || result.tax == null || result.taxRate == null) {
+    return `Import tax isn’t calculated for this lane. ${result.taxNote} ${DISCLAIMER}`;
+  }
+  const fees = result.feeLines.length
+    ? `Separate from tax, this estimate adds ${result.feeLines.map((line) => `${line.name} ${money(line.amount)}`).join(" and ")}.`
+    : "";
   return [
-    `Import tax on this estimate is ${result.taxName} at ${percent(result.taxRate)}, which comes to ${money(result.tax)}.`,
-    taxBaseSentence(result),
+    result.tax === 0
+      ? `${result.taxName}. Nothing is added for import VAT or GST.`
+      : `Import tax is ${result.taxName} at ${percent(result.taxRate)}, which comes to ${money(result.tax)}.`,
     result.taxNote,
-    "Brokerage, merchandise processing fees, and provincial or state sales taxes are not in the rate file.",
+    result.deMinimisNote ? `De minimis: ${result.deMinimisNote}` : "",
+    fees,
     DISCLAIMER,
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function freightAnswer(ctx: ExplainContext): string {
   const result = ctx.primary;
-  const lane = result.freightQuote;
-  const match =
-    lane.matchedBy === "origin"
-      ? `an origin-specific override for ${result.origin.name}`
-      : `the ${lane.region} region lane`;
   return [
-    `Freight is ${money(result.freight)} (${money(lane.perUnitUsd)} per piece × ${result.quantity.toLocaleString("en-US")}), from ${match} into ${result.destination.name}.`,
-    `Insurance is ${percent(result.category.freightEstimates.insuranceRateOfProduct)} of product cost, ${money(result.insurance)}. Together that's ${money(result.freightAndInsurance)}.`,
-    `The placeholder transit range is ${transitLabel(lane.transitDays)}.`,
-    result.category.freightEstimates.note,
+    `Freight is your estimate of ${money(result.freightPerUnit)} per piece, ${money(result.freight)} on this order. Insurance is ${percent(result.insuranceRate)} of product cost, ${money(result.insurance)}.`,
+    `The starter transit range for ${result.freightRegion} → ${result.destination.name} is ${transitLabel(result.transitDays)}, also an estimate, not a sailing schedule.`,
+    "Neither figure comes from the tariff file. There is no researched freight source in this dataset.",
+    result.dutyBasis === "cif" ? "For this destination, duty is charged on a CIF stand-in, so editing freight or insurance changes the duty as well as the shipping line." : "For this destination, duty is charged on product cost, so freight changes the landed total but not the duty.",
     DISCLAIMER,
   ].join(" ");
 }
@@ -94,24 +111,25 @@ function compareAnswer(ctx: ExplainContext): string {
   }
   const a = ctx.primary;
   const b = ctx.secondary;
-  const aCheaper = a.perUnit <= b.perUnit;
+  const aTotal = a.total;
+  const bTotal = b.total;
+  const aPer = a.perUnit;
+  const bPer = b.perUnit;
+  if (aTotal == null || bTotal == null || aPer == null || bPer == null) {
+    const missing = [a, b].filter((item) => item.total == null).map((item) => item.origin.name);
+    return `I can’t say which option costs less to land. The duty rate is unavailable for ${missing.join(" and ")}, and a missing rate is not zero. ${DISCLAIMER}`;
+  }
+  const aCheaper = aPer <= bPer;
   const cheaper = aCheaper ? a : b;
+  const cheaperPer = aCheaper ? aPer : bPer;
+  const otherPer = aCheaper ? bPer : aPer;
   const other = aCheaper ? b : a;
-  const cheaperLabel = aCheaper ? ctx.primaryLabel : ctx.secondaryLabel;
-  const otherLabel = aCheaper ? ctx.secondaryLabel : ctx.primaryLabel;
-  const delta = Math.abs(a.total - b.total);
-  const cheaperLead = cheaper.freightQuote.transitDays;
-  const otherLead = other.freightQuote.transitDays;
-  const cheaperScore = reliabilityMean(cheaper).toFixed(1);
-  const otherScore = reliabilityMean(other).toFixed(1);
-
+  const delta = Math.abs(aTotal - bTotal);
   return [
-    `${cheaper.origin.name} (${cheaperLabel}) lands at ${money(cheaper.perUnit)} a unit, versus ${money(other.perUnit)} from ${other.origin.name} (${otherLabel}).`,
-    `On the full order that's ${money(delta)} less for ${cheaper.origin.name}.`,
-    `${cheaper.origin.name} duty is ${percent(cheaper.dutyRate)}${cheaper.dutyProgram ? ` (${cheaper.dutyProgram})` : " (MFN placeholder)"}; ${other.origin.name} duty is ${percent(other.dutyRate)}${other.dutyProgram ? ` (${other.dutyProgram})` : " (MFN placeholder)"}.`,
-    `Transit on file is ${transitLabel(cheaperLead)} versus ${transitLabel(otherLead)}.`,
-    `Demo reliability profiles — fictional, not factory audits — score ${cheaperScore} / 5 for ${cheaper.origin.name} and ${otherScore} / 5 for ${other.origin.name}.`,
-    "A lower landed cost is one input. Lead time and whether you trust the supplier still sit beside it.",
+    `${cheaper.origin.name} lands at ${money(cheaperPer)} a unit, versus ${money(otherPer)} from ${other.origin.name}.`,
+    `On the full order that’s ${money(delta)} less for ${cheaper.origin.name}, using the rates currently selected.`,
+    `${cheaper.origin.name} duty is ${rateText(cheaper.dutyRate)}${cheaper.dutyProgram ? ` (${cheaper.dutyProgram}, if origin qualifies)` : ""}. ${other.origin.name} duty is ${rateText(other.dutyRate)}${other.dutyProgram ? ` (${other.dutyProgram}, if origin qualifies)` : ""}.`,
+    `Transit estimates are ${transitLabel(cheaper.transitDays)} versus ${transitLabel(other.transitDays)}. Those are not from the tariff file.`,
     DISCLAIMER,
   ].join(" ");
 }
@@ -123,10 +141,7 @@ function reliabilityAnswer(ctx: ExplainContext): string {
     `${result.origin.name}'s demo profile is ${reliabilityMean(result).toFixed(1)} / 5 across on-time history (${signal.onTime}), communication (${signal.communication}), quality consistency (${signal.qualityConsistency}), compliance paperwork (${signal.complianceDocs}), and sampling (${signal.sampling}).`,
   ];
   if (ctx.secondary) {
-    const other = ctx.secondary;
-    lines.push(
-      `${other.origin.name} (${ctx.secondaryLabel}) is ${reliabilityMean(other).toFixed(1)} / 5 on the same fictional scale.`,
-    );
+    lines.push(`${ctx.secondary.origin.name} is ${reliabilityMean(ctx.secondary).toFixed(1)} / 5 on the same fictional scale.`);
   }
   lines.push(signal.note, "Price is the quote. Reliability is the rest of the decision.", DISCLAIMER);
   return lines.join(" ");
@@ -134,22 +149,14 @@ function reliabilityAnswer(ctx: ExplainContext): string {
 
 function summaryAnswer(ctx: ExplainContext): string {
   const result = ctx.primary;
+  if (result.total == null || result.perUnit == null || result.duty == null || result.tax == null) {
+    return `${result.quantity.toLocaleString("en-US")} ${result.category.exampleName} from ${result.origin.name} to ${result.destination.name} can’t be totalled because the duty rate is unavailable. ${DISCLAIMER}`;
+  }
   return [
-    `${orderLabel(result)} from ${result.origin.name} to ${result.destination.name} lands at ${money(result.total)}, or ${money(result.perUnit)} a unit.`,
-    `That's product ${money(result.product)}, freight and insurance ${money(result.freightAndInsurance)}, duties ${money(result.duty)}, and ${result.taxName} ${money(result.tax)}.`,
-    "Ask me why the duty looks high, what the tax includes, or which option costs less to land.",
+    `${result.quantity.toLocaleString("en-US")} ${result.category.exampleName} from ${result.origin.name} to ${result.destination.name} lands at ${money(result.total)}, or ${money(result.perUnit)} a unit.`,
+    `That’s product ${money(result.product)}, freight and insurance ${money(result.freightAndInsurance)}, duties ${money(result.duty)}, and ${result.taxName} ${money(result.tax)}.`,
     DISCLAIMER,
   ].join(" ");
-}
-
-function orderLabel(result: LineResult): string {
-  return `${result.quantity.toLocaleString("en-US")} ${result.category.exampleName}`;
-}
-
-export function greeting(ctx: ExplainContext): string {
-  const result = ctx.primary;
-  const dutyShare = share(result.duty, result.total);
-  return `Duties and tariffs are ${money(result.duty)} of your ${money(result.total)} estimate, about ${dutyShare}%. Ask me where that comes from.`;
 }
 
 export const SUGGESTIONS = [

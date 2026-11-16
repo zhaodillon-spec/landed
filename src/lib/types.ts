@@ -1,28 +1,93 @@
-export type TaxBasis = "cif_plus_duty" | "cif" | "product";
-export type DutyBasis = "fob_product" | "cif";
-
-export type ImportTax = {
+export type ExtraTariff = {
   name: string;
-  rate: number;
-  basis: TaxBasis;
-  note: string;
+  rate: number | null;
+  hts_heading?: string;
+  effective?: string;
+  source_url?: string;
+  note?: string;
+  waived_if_preference_claimed?: boolean;
+  exemption?: string;
 };
 
-export type FreightLane = {
-  perUnitUsd: number;
-  transitDays: [number, number];
+export type RateRecord = {
+  domestic?: boolean;
+  hs_code?: string;
+  mfn_rate: number | null;
+  preferential_rate: number | null;
+  preference_scheme?: string | null;
+  extra_tariffs: ExtraTariff[] | null;
+  source_url?: string;
+  source_url_taric?: string;
+  as_of?: string;
+  notes?: string[];
+  effective_rate_mfn_path: number | null;
+  effective_rate_preferential_path: number | null;
 };
 
-export type PreferentialOverride = {
-  origin: string;
-  destination: string;
-  rate: number;
-  program: string;
-  note: string;
+export type TariffCategory = {
+  id: string;
+  label: string;
+  hs6: string;
+  codes: Record<string, string>;
+};
+
+export type TariffOrigin = {
+  iso2: string;
+  name: string;
+  eu_member: boolean;
+};
+
+export type DestinationRecord = {
+  name: string;
+  tariff_source: string;
+  source_url: string;
+  import_taxes: {
+    GST?: number;
+    HST?: Record<string, number>;
+    pst_note?: string;
+    tax_base?: string;
+    note?: string;
+    source_url?: string;
+    nova_scotia_note?: string;
+    federal_vat?: number | null;
+    fees?: {
+      MPF?: { rate_pct: number; note: string; source_url?: string };
+      HMF?: { rate_pct: number; note: string; source_url?: string };
+    };
+    VAT?: number;
+    VAT_default?: number;
+    VAT_by_country?: Record<string, number>;
+  };
+  de_minimis: {
+    note: string;
+    source_url?: string;
+  };
+  tariff_regime_status?: {
+    ieepa?: string;
+    section_122?: string;
+    section_301_2026?: string;
+    section_301_china?: string;
+    sources?: string[];
+  };
+};
+
+export type TariffFile = {
+  meta: {
+    title: string;
+    as_of: string;
+    timezone_note: string;
+    valuation_basis: Record<string, string>;
+    never_fabricated: string;
+    model: string;
+  };
+  destinations: Record<string, DestinationRecord>;
+  categories: TariffCategory[];
+  origins: TariffOrigin[];
+  rates: Record<string, Record<string, Record<string, RateRecord>>>;
 };
 
 export type Reliability = {
-  placeholder: boolean;
+  placeholder: true;
   note: string;
   onTime: number;
   communication: number;
@@ -36,6 +101,7 @@ export type Origin = {
   name: string;
   region: string;
   aliases: string[];
+  euMember: boolean;
   demoReliability: Reliability;
 };
 
@@ -45,58 +111,17 @@ export type Destination = {
   aliases: string[];
 };
 
-export type Category = {
-  id: string;
-  hsCode: string;
-  hsNote: string;
-  name: string;
+export type Category = TariffCategory & {
   exampleName: string;
-  summary: string;
-  dutyBasis: DutyBasis;
-  mfnByDestination: Record<string, number>;
-  preferentialOverrides: PreferentialOverride[];
-  importTaxByDestination: Record<string, ImportTax>;
-  freightEstimates: {
-    insuranceRateOfProduct: number;
-    note: string;
-    byOriginRegion: Record<string, Record<string, FreightLane>>;
-    originOverrides: Record<string, Record<string, FreightLane>>;
-  };
 };
 
-export type RatesMeta = {
-  schemaVersion: number;
-  dataStatus: string;
-  currency: string;
-  disclaimer: string;
-  dutyBasis: string;
-  taxBasis: string;
-  freightBasis: string;
-  howToReplace: string;
-  asOf: string | null;
-  generatedBy: string;
-};
+export type DutyKind = "preferential" | "mfn" | "domestic" | "unavailable";
+export type DutyBasis = "fob" | "cif";
 
-export type RatesFile = {
-  meta: RatesMeta;
-  destinations: Destination[];
-  origins: Origin[];
-  categories: Category[];
-};
-
-export type DutyKind = "preferential" | "mfn" | "domestic";
-
-export type DutyQuote = {
-  rate: number;
-  mfnRate: number;
-  kind: DutyKind;
-  program: string | null;
-  note: string | null;
-};
-
-export type FreightQuote = FreightLane & {
-  region: string;
-  matchedBy: "region" | "origin";
+export type FeeLine = {
+  name: string;
+  amount: number;
+  note: string;
 };
 
 export type LineResult = {
@@ -106,22 +131,33 @@ export type LineResult = {
   quantity: number;
   unitCost: number;
   product: number;
+  freightPerUnit: number;
   freight: number;
+  insuranceRate: number;
   insurance: number;
   freightAndInsurance: number;
-  duty: number;
-  dutyRate: number;
-  mfnRate: number;
+  transitDays: [number, number];
+  freightRegion: string;
+  claimPreference: boolean;
+  dutyAvailable: boolean;
+  duty: number | null;
+  dutyRate: number | null;
+  mfnPathRate: number | null;
   dutyKind: DutyKind;
   dutyProgram: string | null;
-  dutyNote: string | null;
+  dutyNotes: string[];
+  extraTariffs: ExtraTariff[];
+  hsCode: string | null;
+  sourceUrl: string | null;
   dutyBasis: DutyBasis;
-  tax: number;
+  taxAvailable: boolean;
+  tax: number | null;
   taxName: string;
-  taxRate: number;
-  taxBasis: TaxBasis;
+  taxRate: number | null;
   taxNote: string;
-  total: number;
-  perUnit: number;
-  freightQuote: FreightQuote;
+  fees: number;
+  feeLines: FeeLine[];
+  deMinimisNote: string;
+  total: number | null;
+  perUnit: number | null;
 };

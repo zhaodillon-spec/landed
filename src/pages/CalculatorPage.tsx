@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { DemoControls } from "../components/DemoControls";
 import { EstimateCard, EstimateDetail } from "../components/EstimateCard";
 import { PageIntro } from "../components/PageIntro";
-import { PlaceholderBanner } from "../components/PlaceholderBanner";
+import { DataNote } from "../components/PlaceholderBanner";
 import { Tango } from "../components/Tango";
 import { TangoPanel } from "../components/TangoPanel";
 import { WaitlistSection } from "../components/WaitlistForm";
@@ -21,18 +21,18 @@ export function CalculatorPage() {
       <PageIntro
         eyebrow="Demo · Tariff & import calculator"
         title="See the cost before the order."
-        lede="Unit cost, quantity, origin, and destination. Landed adds placeholder freight, duty, and import tax so the per-unit number includes the border, not just the factory."
+        lede="Unit cost, quantity, origin, and destination. Duty and import tax come from the 15 Nov 2026 schedules. Freight and insurance stay editable because they were not researched."
       />
       <div className="mt-8">
-        <PlaceholderBanner />
+        <DataNote />
       </div>
       <div className="mt-10 grid items-start gap-8 lg:grid-cols-12">
         <div className="rounded-[28px] border border-line bg-white p-6 lg:col-span-5">
           <DemoControls demo={demo} onChange={setDemo} />
           {quote.ok && (
             <p className="mt-6 text-sm leading-relaxed text-muted">
-              Transit on file for this lane: {transitLabel(quote.a.freightQuote.transitDays)}. Heading {quote.a.category.hsCode} is an
-              illustrative label, not a classification.
+              Transit estimate: {transitLabel(quote.a.transitDays)}. Not a sailing schedule.
+              {quote.a.hsCode ? ` Tariff line ${quote.a.hsCode}.` : ""} A different fibre, gender, or value band can change the line.
             </p>
           )}
         </div>

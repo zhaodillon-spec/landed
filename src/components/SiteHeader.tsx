@@ -7,6 +7,7 @@ const links = [
   { href: "/calculator", label: "Calculator" },
   { href: "/compare", label: "Compare" },
   { href: "/rates", label: "Rate table" },
+  { href: "/sources", label: "Sources" },
 ];
 
 function NavLinks({ className }: { className?: string }) {
