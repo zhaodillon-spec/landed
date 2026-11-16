@@ -26,7 +26,7 @@ export function TangoPanel({ context }: { context: ExplainContext | null }) {
   return (
     <div className="rounded-[36px] border border-line bg-white p-6 shadow-card sm:p-8">
       <div className="flex items-end gap-3">
-        <Tango className="h-10 w-10 shrink-0" title="Tango" />
+        <Tango ambient={false} className="h-10 w-10 shrink-0" title="Tango" />
         <p className="max-w-[90%] rounded-[22px] rounded-bl-md bg-canvas px-5 py-3 leading-relaxed">{intro}</p>
       </div>
       <div className="mt-4 space-y-3">
@@ -37,7 +37,7 @@ export function TangoPanel({ context }: { context: ExplainContext | null }) {
             </p>
           ) : (
             <div key={index} className="flex items-end gap-3">
-              <Tango className="h-10 w-10 shrink-0" />
+              <Tango ambient={false} className="h-10 w-10 shrink-0" />
               <p className="max-w-[85%] rounded-[22px] rounded-bl-md bg-canvas px-5 py-3 leading-relaxed">{message.text}</p>
             </div>
           ),

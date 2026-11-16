@@ -50,7 +50,7 @@ export function WaitlistForm() {
   if (status.kind === "done") {
     return (
       <div className="text-center" role="status">
-        <Tango dance className="mx-auto h-28 w-28" title="Tango" />
+        <Tango celebrate className="mx-auto h-28 w-28" title="Tango" />
         <h3 className="mt-4 font-heading text-4xl tracking-[-0.02em]">You’re on the list.</h3>
         <p className="mt-3 text-lg leading-relaxed text-muted">
           Tango saved a seat for {status.brand}. We’ll write to {status.email} when early access opens.
@@ -171,7 +171,7 @@ export function WaitlistSection() {
         <div aria-hidden className="absolute -left-16 -top-16 h-56 w-56 rounded-full border border-primary/15" />
         <div className="relative mx-auto grid max-w-page items-center gap-12 px-5 py-16 md:px-10 md:py-28 lg:grid-cols-2 lg:gap-20">
           <div>
-            <Tango dance className="h-24 w-24" />
+            <Tango className="h-24 w-24" />
             <h2 className="mt-6 font-heading text-4xl leading-[1.06] tracking-[-0.02em] sm:text-5xl lg:text-6xl">
               Be among the first to <em className="text-primary">source smarter.</em>
             </h2>

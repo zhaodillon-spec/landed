@@ -55,7 +55,7 @@ export function HomePage() {
               className="absolute -inset-x-4 -bottom-8 -top-16 -z-10 rounded-[46%_54%_52%_48%/55%_45%_55%_45%] bg-mist sm:-inset-x-10"
             />
             <div className="mb-2 flex justify-end pr-4">
-              <Tango dance className="h-24 w-24" />
+              <Tango className="h-24 w-24" />
             </div>
             {quote.ok ? (
               <div className="relative">
@@ -247,7 +247,7 @@ export function HomePage() {
       <section id="tango" className="scroll-mt-24">
         <div className="mx-auto grid max-w-page items-center gap-14 px-6 pb-20 md:px-10 md:pb-32 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-5">
-            <Tango dance className="h-28 w-28" />
+            <Tango className="h-28 w-28" />
             <p className="mono-label mt-8">Meet Tango</p>
             <h2 className="mt-5 font-heading text-4xl leading-[1.06] tracking-[-0.02em] sm:text-5xl lg:text-[3.25rem]">
               Still have questions? <em className="text-primary">Ask Tango.</em>

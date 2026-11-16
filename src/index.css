@@ -47,31 +47,132 @@
   }
 }
 
-@keyframes tango-bob {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  30% {
-    transform: translateY(-6px) rotate(-2.5deg);
-  }
-  60% {
-    transform: translateY(0) rotate(2.5deg);
-  }
+.tango-body,
+.tango-string,
+.tango-arm-l,
+.tango-arm-r,
+.tango-leg-l,
+.tango-leg-r,
+.tango-shadow {
+  transform-box: view-box;
 }
 
-.tango-dance .tango-body {
-  transform-box: fill-box;
-  transform-origin: center bottom;
-  animation: tango-bob 3.4s ease-in-out infinite;
+.tango-body {
+  transform-origin: 50% 78%;
 }
+
+.tango-string {
+  transform-origin: 36% 38%;
+}
+
+.tango-arm-l {
+  transform-origin: 25% 57%;
+}
+
+.tango-arm-r {
+  transform-origin: 78% 56%;
+}
+
+.tango-leg-l {
+  transform-origin: 42% 81%;
+}
+
+.tango-leg-r {
+  transform-origin: 60% 81%;
+}
+
+.tango-shadow {
+  transform-origin: 50% 94%;
+}
+
+@keyframes tango-groove {
+  0% { transform: translateY(0) rotate(0deg); }
+  14% { transform: translateY(3px) rotate(-8deg) scale(1.04, 0.96); }
+  32% { transform: translateY(-34px) rotate(10deg) scale(0.96, 1.08); }
+  48% { transform: translateY(0) rotate(-16deg); }
+  66% { transform: translateY(-26px) rotate(18deg); }
+  82% { transform: translateY(1px) rotate(-6deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes tango-celebrate {
+  0% { transform: translateY(0) rotate(0deg) scale(1); }
+  18% { transform: translateY(-20px) rotate(-14deg) scale(1.06); }
+  42% { transform: translateY(-6px) rotate(180deg) scale(1); }
+  68% { transform: translateY(-22px) rotate(360deg) scale(1.08); }
+  100% { transform: translateY(0) rotate(360deg) scale(1); }
+}
+
+@keyframes tango-string {
+  0%, 100% { transform: rotate(0deg); }
+  35% { transform: rotate(16deg); }
+  68% { transform: rotate(-18deg); }
+}
+
+@keyframes tango-arm-l {
+  0%, 100% { transform: rotate(0deg); }
+  40% { transform: rotate(26deg); }
+  70% { transform: rotate(-14deg); }
+}
+
+@keyframes tango-arm-r {
+  0%, 100% { transform: rotate(0deg); }
+  40% { transform: rotate(-34deg); }
+  70% { transform: rotate(18deg); }
+}
+
+@keyframes tango-leg-l {
+  0%, 100% { transform: rotate(0deg); }
+  45% { transform: rotate(22deg); }
+  72% { transform: rotate(-8deg); }
+}
+
+@keyframes tango-leg-r {
+  0%, 100% { transform: rotate(0deg); }
+  45% { transform: rotate(-20deg); }
+  72% { transform: rotate(12deg); }
+}
+
+@keyframes tango-shadow-squash {
+  0%, 100% { transform: scaleX(1); opacity: 0.12; }
+  32%, 66% { transform: scaleX(0.72); opacity: 0.07; }
+}
+
+.tango-dancing .tango-body { animation: tango-groove 1.7s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+.tango-dancing .tango-string { animation: tango-string 1.7s ease-in-out both; }
+.tango-dancing .tango-arm-l { animation: tango-arm-l 1.7s ease-in-out both; }
+.tango-dancing .tango-arm-r { animation: tango-arm-r 1.7s ease-in-out both; }
+.tango-dancing .tango-leg-l { animation: tango-leg-l 1.7s ease-in-out both; }
+.tango-dancing .tango-leg-r { animation: tango-leg-r 1.7s ease-in-out both; }
+.tango-dancing .tango-shadow { animation: tango-shadow-squash 1.7s ease-in-out both; }
+
+.tango-celebrate .tango-body { animation: tango-celebrate 2.2s ease-in-out infinite; }
+.tango-celebrate .tango-string { animation: tango-string 0.7s ease-in-out infinite; }
+.tango-celebrate .tango-arm-l { animation: tango-arm-l 0.7s ease-in-out infinite; }
+.tango-celebrate .tango-arm-r { animation: tango-arm-r 0.7s ease-in-out infinite; }
+.tango-celebrate .tango-leg-l { animation: tango-leg-l 0.55s ease-in-out infinite; }
+.tango-celebrate .tango-leg-r { animation: tango-leg-r 0.55s ease-in-out infinite; }
+.tango-celebrate .tango-shadow { animation: tango-shadow-squash 0.7s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
-  .tango-dance .tango-body,
+  .tango-dancing .tango-body,
+  .tango-dancing .tango-string,
+  .tango-dancing .tango-arm-l,
+  .tango-dancing .tango-arm-r,
+  .tango-dancing .tango-leg-l,
+  .tango-dancing .tango-leg-r,
+  .tango-dancing .tango-shadow,
+  .tango-celebrate .tango-body,
+  .tango-celebrate .tango-string,
+  .tango-celebrate .tango-arm-l,
+  .tango-celebrate .tango-arm-r,
+  .tango-celebrate .tango-leg-l,
+  .tango-celebrate .tango-leg-r,
+  .tango-celebrate .tango-shadow,
   .btn-primary,
   .btn-secondary {
     animation: none;

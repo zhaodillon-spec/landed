@@ -109,7 +109,7 @@ export function CountrySelect({ label, countries, value, onChange, compact = fal
           <ul id={listId} role="listbox" className="max-h-64 overflow-y-auto py-1">
             {filtered.length === 0 && (
               <li className="flex items-center gap-3 px-3 py-4 text-sm text-muted">
-                <Tango className="h-10 w-10 shrink-0" />
+                <Tango ambient={false} className="h-10 w-10 shrink-0" />
                 No country matches that.
               </li>
             )}

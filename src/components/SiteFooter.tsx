@@ -7,7 +7,7 @@ export function SiteFooter() {
       <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
         <div className="max-w-sm">
           <Link to="/" className="flex items-center gap-2.5">
-            <Tango className="h-10 w-10" />
+            <Tango ambient={false} className="h-10 w-10" />
             <span className="font-heading text-[28px] leading-none tracking-[-0.01em]">
               Landed<span className="text-primary">.</span>
             </span>

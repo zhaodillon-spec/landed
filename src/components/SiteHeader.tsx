@@ -35,7 +35,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex h-[72px] max-w-page items-center justify-between gap-4 px-6 md:px-10">
         <Link to="/" className="flex items-center gap-2.5">
-          <Tango className="h-10 w-10" />
+          <Tango ambient={false} className="h-10 w-10" />
           <span className="font-heading text-[28px] leading-none tracking-[-0.01em]">
             Landed<span className="text-primary">.</span>
           </span>
