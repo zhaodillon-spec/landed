@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-white font-sans text-ink antialiased;
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: #0047ab;
+    color: white;
+  }
+}
+
+@layer components {
+  .mono-label {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #737373;
+    font-size: 11px;
+  }
+
+  .btn-primary {
+    @apply inline-flex h-14 items-center justify-center gap-2 rounded-full bg-primary px-8 font-medium text-white transition duration-300 hover:-translate-y-0.5 hover:shadow-lift;
+  }
+
+  .btn-secondary {
+    @apply inline-flex h-14 items-center justify-center rounded-full border border-line bg-white px-8 font-medium text-ink transition duration-300 hover:border-ink;
+  }
+
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible,
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #0047ab;
+    outline-offset: 3px;
+  }
+}
+
+@keyframes tango-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  30% {
+    transform: translateY(-6px) rotate(-2.5deg);
+  }
+  60% {
+    transform: translateY(0) rotate(2.5deg);
+  }
+}
+
+.tango-dance .tango-body {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: tango-bob 3.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .tango-dance .tango-body,
+  .btn-primary,
+  .btn-secondary {
+    animation: none;
+    transition: none;
+  }
+}
